@@ -24,6 +24,7 @@ def generate_data(n: int):
     # Create a list to hold the final travel_time matrices for N=5,10,15,... up to the function argument n 
     # (which should be 75 at max i.e. 16 matrices in total)
     travel_time_matrices_list = []
+
     for i in N_set:
         print(f"\nCurrent N: {i}")
         # Enumerate num of variants from 1 to (i)(ln(i)) where i is a member of N=5,10,15,...
@@ -31,20 +32,31 @@ def generate_data(n: int):
         print(f"\t {variants}")
 
         # Initialize an empty matrix with shape (i,i)
-        ith_travel_time_matrix = np.zeros((i, i))
+        ith_travel_time_matrix = np.zeros((i + 1, i + 1))
 
         # Enumerate (i)(ln(i)) and get their average
         for variant_num in variants:
             # Generate a variant
             current_variant = (np.round((valid_travel_time_range[1] - valid_travel_time_range[0]
-                                         ) * np.random.rand(i, i) + valid_travel_time_range[0]))
+            
+                                         ) * np.random.rand(i + 1, i + 1) + valid_travel_time_range[0]))
+            print("\n")
             print(current_variant)
+            
             # Add it elementwise to accumulator matrix
             ith_travel_time_matrix = ith_travel_time_matrix + current_variant
 
         print(variant_num)
+
         # divide by the i(ln(i)) to get element-wise average matrix
         ith_travel_time_matrix = np.round(ith_travel_time_matrix/variant_num)
+
+        # change the diagonal values (i,i) to zero
+        for x in range(0, ith_travel_time_matrix.shape[0]):
+            ith_travel_time_matrix[x][x] = 0
+
+            for y in range(0, ith_travel_time_matrix.shape[1] ):
+                ith_travel_time_matrix[x][y] = ith_travel_time_matrix[y][x]
         print(ith_travel_time_matrix)
 
         # Append averaged travel_time matrix to list of travel_time matricess
