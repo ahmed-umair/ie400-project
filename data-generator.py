@@ -17,9 +17,10 @@ def generate_data(n: int):
     student_times_Xi = np.round(student_times_Xi)
     print(student_times_Xi)
 
-    # Enumerate the applicable N values up to N
+    # Enumerate the applicable N values up to N=n
     N_set = range(5, n + 5, 5)
     print(f"\n {N_set}")
+
     N = []
     for i in N_set:
         print(f"\nCurrent N: {i}")
@@ -34,11 +35,12 @@ def generate_data(n: int):
             ith_travel_time_matrix = ith_travel_time_matrix + current_variant
         
         print(variant_num)
-        ith_travel_time_matrix = ith_travel_time_matrix/variant_num
+        ith_travel_time_matrix = np.round(ith_travel_time_matrix/variant_num)
         print(ith_travel_time_matrix)
         N.append(ith_travel_time_matrix)
     
-    print(N[0])
+    for i in range(len(N_set)):
+        print(f"\n\n THIS IS THE FIRST TRAVEL_TIME MATRIX FOR N = {N_set[i]} \n {N[i]}")
 
 if __name__ == "__main__":
     n = int(sys.argv[1])
