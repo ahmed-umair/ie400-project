@@ -77,14 +77,8 @@ def solve_problem(student_times, travel_times):
     student_nums_list = []
     for i in range(0, 6):
         student_nums_list.append(i)
-        # # row = []
-        # for j in range(0,6):
-        #     # row.append(f"{i}{j}")
-        #     var_names_list.append(f"{i}{j}")
 
-    # print(student_nums_list)
-
-    # print(var_names_list)
+    mdl.u_vars = mdl.integer_var_list(keys=student_nums_list, name="U")
     mdl.order_vars = mdl.binary_var_matrix(
         keys1=student_nums_list, keys2=student_nums_list, name="Y")
     mdl.add_constraints((mdl.sum(mdl.order_vars[student_i, student_j] for student_j in student_nums_list)
@@ -93,6 +87,13 @@ def solve_problem(student_times, travel_times):
                          == 1, 'ct_single_arrival_student_%d' % student_j) for student_j in student_nums_list)
     mdl.add_constraints((mdl.sum(mdl.order_vars[student_i, student_j]) == 0, 'ct_cannot_come_back_to_same_student_%d' % student_i)
                         for student_j in student_nums_list for student_i in student_nums_list if student_i == student_j)
+
+    mdl.add_constraints((mdl.u_vars[student_i] - mdl.u_vars[student_j] + 6 * mdl.order_vars[student_i, student_j] <= 5)
+                        for student_i in student_nums_list for student_j in student_nums_list if student_i != student_j and student_i >= 1 and student_j >= 1)
+    
+    mdl.add_constraints((mdl.u_vars[student_i] >= 0) for student_i in student_nums_list)
+    mdl.add_constraints((mdl.u_vars[student_i] <= 5) for student_i in student_nums_list)
+
     mdl.minimize(mdl.sum(mdl.order_vars[student_i, student_j] * (travel_times[0][student_i][student_j])
                          for student_j in student_nums_list for student_i in student_nums_list) + mdl.sum(student_times[0][i] for i in range(0, 6)))
 
@@ -110,8 +111,8 @@ def solve_problem(student_times, travel_times):
     print(mdl.get_objective_expr())
     print("\n")
 
-    travel_vals = (travel_times[student_i][student_j] for student_j in student_nums_list for student_i in student_nums_list)
-    
+    travel_vals = (travel_times[student_i][student_j]
+                   for student_j in student_nums_list for student_i in student_nums_list)
 
     mdl.solve()
 
