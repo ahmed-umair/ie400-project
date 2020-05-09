@@ -4,118 +4,101 @@
 # (c) Copyright IBM Corp. 2015, 2018
 # --------------------------------------------------------------------------
 
-# The goal of the diet problem is to select a set of foods that satisfies
-# a set of daily nutritional requirements at minimal cost.
-# Source of data: http://www.neos-guide.org/content/diet-problem-solver
-
-from collections import namedtuple
+"""The model aims at minimizing the production cost for a number of products
+while satisfying customer demand. Each product can be produced either inside
+the company or outside, at a higher cost.
+The inside production is constrained by the company's resources, while outside
+production is considered unlimited.
+The model first declares the products and the resources.
+The data consists of the description of the products (the demand, the inside
+and outside costs, and the resource consumption) and the capacity of the
+various resources.
+The variables for this problem are the inside and outside production for each
+product.
+"""
 
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
+
 # ----------------------------------------------------------------------------
 # Initialize the problem data
 # ----------------------------------------------------------------------------
+PRODUCTS = [("kluski", 100, 0.6, 0.8),
+            ("capellini", 200, 0.8, 0.9),
+            ("fettucine", 300, 0.3, 0.4)]
 
-FOODS = [
-    ("Roasted Chicken", 0.84, 0, 10),
-    ("Spaghetti W/ Sauce", 0.78, 0, 10),
-    ("Tomato,Red,Ripe,Raw", 0.27, 0, 10),
-    ("Apple,Raw,W/Skin", .24, 0, 10),
-    ("Grapes", 0.32, 0, 10),
-    ("Chocolate Chip Cookies", 0.03, 0, 10),
-    ("Lowfat Milk", 0.23, 0, 10),
-    ("Raisin Brn", 0.34, 0, 10),
-    ("Hotdog", 0.31, 0, 10)
-]
+# resources are a list of simple tuples (name, capacity)
+RESOURCES = [("flour", 20),
+             ("eggs", 40)]
 
-NUTRIENTS = [
-    ("Calories", 2000, 2500),
-    ("Calcium", 800, 1600),
-    ("Iron", 10, 30),
-    ("Vit_A", 5000, 50000),
-    ("Dietary_Fiber", 25, 100),
-    ("Carbohydrates", 0, 300),
-    ("Protein", 50, 100)
-]
-
-FOOD_NUTRIENTS = [
-    ("Roasted Chicken", 277.4, 21.9, 1.8, 77.4, 0, 0, 42.2),
-    ("Spaghetti W/ Sauce", 358.2, 80.2, 2.3, 3055.2, 11.6, 58.3, 8.2),
-    ("Tomato,Red,Ripe,Raw", 25.8, 6.2, 0.6, 766.3, 1.4, 5.7, 1),
-    ("Apple,Raw,W/Skin", 81.4, 9.7, 0.2, 73.1, 3.7, 21, 0.3),
-    ("Grapes", 15.1, 3.4, 0.1, 24, 0.2, 4.1, 0.2),
-    ("Chocolate Chip Cookies", 78.1, 6.2, 0.4, 101.8, 0, 9.3, 0.9),
-    ("Lowfat Milk", 121.2, 296.7, 0.1, 500.2, 0, 11.7, 8.1),
-    ("Raisin Brn", 115.1, 12.9, 16.8, 1250.2, 4, 27.9, 4),
-    ("Hotdog", 242.1, 23.5, 2.3, 0, 0, 18, 10.4)
-]
-
-Food = namedtuple("Food", ["name", "unit_cost", "qmin", "qmax"])
-Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
+CONSUMPTIONS = {("kluski", "flour"): 0.5,
+                ("kluski", "eggs"): 0.2,
+                ("capellini", "flour"): 0.4,
+                ("capellini", "eggs"): 0.4,
+                ("fettucine", "flour"): 0.3,
+                ("fettucine", "eggs"): 0.6}
 
 
 # ----------------------------------------------------------------------------
 # Build the model
 # ----------------------------------------------------------------------------
+def build_production_problem(products, resources, consumptions, **kwargs):
+    """ Takes as input:
+        - a list of product tuples (name, demand, inside, outside)
+        - a list of resource tuples (name, capacity)
+        - a list of consumption tuples (product_name, resource_named, consumed)
+    """
+    mdl = Model(name='production', **kwargs)
+    # --- decision variables ---
+    mdl.inside_vars  = mdl.continuous_var_dict(products, name=lambda p: 'inside_%s' % p[0])
+    mdl.outside_vars = mdl.continuous_var_dict(products, name=lambda p: 'outside_%s' % p[0])
 
-def build_diet_model(name='diet', **kwargs):
-    ints = kwargs.pop('ints', False)
+    # --- constraints ---
+    # demand satisfaction
+    mdl.add_constraints((mdl.inside_vars[prod] + mdl.outside_vars[prod] >= prod[1], 'ct_demand_%s' % prod[0]) for prod in products)
 
-    # Create tuples with named fields for foods and nutrients
-    foods = [Food(*f) for f in FOODS]
-    nutrients = [Nutrient(*row) for row in NUTRIENTS]
+    # --- resource capacity ---
+    mdl.add_constraints((mdl.sum(mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products) <= res[1],
+                         'ct_res_%s' % res[0]) for res in resources)
 
-    food_nutrients = {(fn[0], nutrients[n].name):
-                          fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
-
-    # Model
-    mdl = Model(name=name, **kwargs)
-
-    # Decision variables, limited to be >= Food.qmin and <= Food.qmax
-    ftype = mdl.integer_vartype if ints else mdl.continuous_vartype
-    qty = mdl.var_dict(foods, ftype, lb=lambda f: f.qmin, ub=lambda f: f.qmax, name=lambda f: "q_%s" % f.name)
-
-    # Limit range of nutrients, and mark them as KPIs
-    for n in nutrients:
-        amount = mdl.sum(qty[f] * food_nutrients[f.name, n.name] for f in foods)
-        mdl.add_range(n.qmin, amount, n.qmax)
-        mdl.add_kpi(amount, publish_name="Total %s" % n.name)
-
-    # Minimize cost
-    total_cost = mdl.sum(qty[f] * f.unit_cost for f in foods)
-    mdl.add_kpi(total_cost, 'Total cost')
-
-    # add a functional KPI , taking a model and a solution as argument
-    # this KPI counts the number of foods used.
-    def nb_products(mdl_, s_):
-        qvs = mdl_.find_matching_vars(pattern="q_")
-        return sum(1 for qv in qvs if s_[qv] >= 1e-5)
-
-    mdl.add_kpi(nb_products, 'Nb foods')
-    mdl.minimize(total_cost)
-
+    # --- objective ---
+    mdl.total_inside_cost = mdl.sum(mdl.inside_vars[p] * p[2] for p in products)
+    mdl.add_kpi(mdl.total_inside_cost, "inside cost")
+    mdl.total_outside_cost = mdl.sum(mdl.outside_vars[p] * p[3] for p in products)
+    mdl.add_kpi(mdl.total_outside_cost, "outside cost")
+    mdl.minimize(mdl.total_inside_cost + mdl.total_outside_cost)
     return mdl
 
+
+def print_production_solution(mdl, products):
+    obj = mdl.objective_value
+    print("* Production model solved with objective: {:g}".format(obj))
+    print("* Total inside cost=%g" % mdl.total_inside_cost.solution_value)
+    for p in products:
+        print("Inside production of {product}: {ins_var}".format
+              (product=p[0], ins_var=mdl.inside_vars[p].solution_value))
+    print("* Total outside cost=%g" % mdl.total_outside_cost.solution_value)
+    for p in products:
+        print("Outside production of {product}: {out_var}".format
+              (product=p[0], out_var=mdl.outside_vars[p].solution_value))
+
+
+def build_default_production_problem(**kwargs):
+    return build_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS, **kwargs)
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
-
 if __name__ == '__main__':
-    mdl = build_diet_model(ints=True, log_output=True, float_precision=6)
-    mdl.print_information()
-
-    s = mdl.solve()
-    if s:
-        qty_vars = mdl.find_matching_vars(pattern="q_")
-        for fv in qty_vars:
-            food_name = fv.name[2:]
-            print("Buy {0:<25} = {1:9.6g}".format(food_name, fv.solution_value))
-
-        mdl.report_kpis()
+    # Build the model
+    model = build_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS)
+    model.print_information()
+    # Solve the model.
+    if model.solve():
+        print_production_solution(model, PRODUCTS)
         # Save the CPLEX solution as "solution.json" program output
         with get_environment().get_output_stream("solution.json") as fp:
-            mdl.solution.export(fp, "json")
+            model.solution.export(fp, "json")
     else:
-        print("* model has no solution")
+        print("Problem has no solution")
