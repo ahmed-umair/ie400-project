@@ -1,8 +1,12 @@
 # IE-400 Project data-generator
 import numpy as np
+import pandas as pd
 import sys
 import pprint
 import math
+import time
+import os
+import func_timeout
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
@@ -10,6 +14,7 @@ from docplex.util.environment import get_environment
 # we specify the our ranges as [a,b+1) to make them [a,b]
 valid_hw_time_range = (300, 500)
 valid_travel_time_range = (100, 300)
+
 
 
 def generate_data(n: int):
@@ -71,15 +76,17 @@ def generate_data(n: int):
         # Append averaged travel_time matrix to list of travel_time matricess
         travel_time_matrices_list.append(ith_travel_time_matrix)
 
-    # Print all of the calculated matrices
-    # for i in range(len(N_set)):
-        # print(
-        #     f"\n\n THIS IS THE FIRST TRAVEL_TIME MATRIX FOR N = {N_set[i]} \n {travel_time_matrices_list[i]}")
+    for i in travel_time_matrices_list:
+        tt_df = pd.DataFrame(i)
+        tt_df.to_excel(os.path.join(os.getcwd(), 'generated_data', f'travel_times_{travel_time_matrices_list.index(i)}.xls'), index=True)
+    st_df = pd.DataFrame(student_times_Xi)
+    st_df.to_excel(os.path.join(os.getcwd(), 'generated_data', 'student_times.xls'), index=True)
 
     return student_times_Xi, travel_time_matrices_list
 
 
 def solve_problem(student_times, num_of_nodes):
+    start_time = time.time()
     # num_of_nodes = len(student_times[0])
     mdl = Model(name="traveling-salesman")
     student_nums_list = []
@@ -115,8 +122,12 @@ def solve_problem(student_times, num_of_nodes):
     mdl.add_constraints((mdl.u_vars[student_i] <= (num_of_nodes-1))
                         for student_i in student_nums_list if student_i >= 1)
 
+    # print(student_nums_list)
+    # print(student_times[0])
+    # print(tt_args)
+
     mdl.minimize(mdl.sum(mdl.order_vars[student_i, student_j] * (tt_args[student_i][student_j]) 
-                         for student_j in student_nums_list for student_i in student_nums_list)+ mdl.sum(student_times[0][i] for i in range(0, num_of_nodes)))
+                         for student_j in student_nums_list for student_i in student_nums_list)+ mdl.sum(student_times[0][i] for i in student_nums_list))
     #  + mdl.sum(student_times[0][i] for i in range(0, n - 1)))
 
     # print("### VARIABLES ###")
@@ -143,11 +154,13 @@ def solve_problem(student_times, num_of_nodes):
     print("\n")
 
     print("### IP SOLUTION ###")
+    print("--- %s seconds ---" % (time.time() - start_time))
     mdl.print_solution()
 
 
 def dp_recursive(source, unvisited_set):
     
+    start_time = time.time()
     # print("\n\n #### NEW CALL ####")
     # print(f"Unvisited Set: {unvisited_set}")
     # print(f"Source Node: {source}")
@@ -181,9 +194,12 @@ def dp_recursive(source, unvisited_set):
     #     tabs = tabs + "\t"
     # print (tabs, min_path_val, f"{source}-->" + min_dist_complete_path)
 
+    
     return (min_path_val, f"[{source}]<-->" + min_dist_complete_path)
 
+@func_timeout.func_set_timeout(30)
 def dp_wrapper(num_of_nodes):
+    start_time = time.time()
     unvisited_nodes_set = []
 
     for i in range(0, num_of_nodes + 1):
@@ -197,35 +213,27 @@ def dp_wrapper(num_of_nodes):
     for i in range(0, num_of_nodes + 1):
         homework_sum = homework_sum + student_times[0][i]
 
+    print("\n")
+    print("### DP SOLUTION ###")
+    print("--- %s seconds ---" % (time.time() - start_time))
     return (homework_sum + travel_result[0], travel_result[1])
 
 
 
 if __name__ == "__main__":
     n = int(sys.argv[1])
-    # print (n)
-    # generate_data(n)
     student_times, travel_times = generate_data(n)
     
-    # travel_times[0][0] = [0, 23, 15, 42, 30, 51]
-    # travel_times[0][1] = [23, 0, 34, 28, 35, 45]
-    # travel_times[0][2] = [15, 34, 0, 48, 62, 27]
-    # travel_times[0][3] = [24, 28, 48, 0, 21, 19]
-    # travel_times[0][4] = [30, 35, 62, 21, 0, 36]
-    # travel_times[0][5] = [51, 45, 27, 19, 36, 0]
-
-    # student_times = [[0, 35, 45, 20, 50, 65]]
-    
-
-    # unvisited_nodes_set = [1, 2, 3, 4, 5]
-
-    print("\n")
-    # print(travel_times)
     
     for i in range(0, n//5):
-        tt_args = travel_times[0]
-        print("\n")
-        print("\n")
-        print("### DP SOLUTION ###")
-        # print(dp_wrapper(n))
-        solve_problem(student_times, n + 1)
+        tt_args = travel_times[i]
+        print(f"N = {(i+1)*(5)}")
+        solve_problem(student_times, (i+1)*(5) + 1)
+
+    for i in range(0, n//5):
+        tt_args = travel_times[i]
+        print(f"N = {(i+1)*(5)}")
+        
+        print(dp_wrapper((i+1)*(5)))
+#         solve_problem(student_times, (i+1)*(5) + 1)
+
