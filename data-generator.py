@@ -20,9 +20,10 @@ def generate_data(n: int):
     # ([0,1) * 201) --> 0 to 199.99 + 300 = 300 to 500
 
     student_times_Xi = (valid_hw_time_range[1] - valid_hw_time_range[0]
-                        ) * np.random.rand(1, 75) + valid_hw_time_range[0]
+                        ) * np.random.rand(1, 76) + valid_hw_time_range[0]
 
     student_times_Xi = np.round(student_times_Xi)
+    student_times_Xi[0][0] = 0
     print(student_times_Xi)
 
     # Enumerate the applicable N values up to N=n i.e. N=5,10,15...n
@@ -49,7 +50,7 @@ def generate_data(n: int):
 
                                          ) * np.random.rand(i + 1, i + 1) + valid_travel_time_range[0]))
             print("\n")
-            print(current_variant)
+            # print(current_variant)
 
             # Add it elementwise to accumulator matrix
             ith_travel_time_matrix = ith_travel_time_matrix + current_variant
@@ -65,7 +66,7 @@ def generate_data(n: int):
 
             for y in range(0, ith_travel_time_matrix.shape[1]):
                 ith_travel_time_matrix[x][y] = ith_travel_time_matrix[y][x]
-        print(ith_travel_time_matrix)
+        # print(ith_travel_time_matrix)
 
         # Append averaged travel_time matrix to list of travel_time matricess
         travel_time_matrices_list.append(ith_travel_time_matrix)
@@ -78,11 +79,11 @@ def generate_data(n: int):
     return student_times_Xi, travel_time_matrices_list
 
 
-def solve_problem(student_times, travel_times):
-    n = len(student_times[0])
+def solve_problem(student_times, num_of_nodes):
+    # num_of_nodes = len(student_times[0])
     mdl = Model(name="traveling-salesman")
     student_nums_list = []
-    for i in range(0, n):
+    for i in range(0, num_of_nodes):
         student_nums_list.append(i)
         # [0, 1, 2 ,3 .. 5]
 
@@ -105,32 +106,32 @@ def solve_problem(student_times, travel_times):
 
     # Subtour elimination
     # Ui - Uj + n * Yij <= n - 1 where i >=1 and j >= 1
-    mdl.add_constraints((mdl.u_vars[student_i] - mdl.u_vars[student_j] + n * mdl.order_vars[student_i, student_j] <= n-1)
+    mdl.add_constraints((mdl.u_vars[student_i] - mdl.u_vars[student_j] + num_of_nodes * mdl.order_vars[student_i, student_j] <= num_of_nodes-1)
                         for student_i in student_nums_list for student_j in student_nums_list if student_i != student_j and student_i >= 1 and student_j >= 1)
 
     mdl.add_constraints((mdl.u_vars[student_i] >= 0)
                         for student_i in student_nums_list if student_i >= 1)
 
-    mdl.add_constraints((mdl.u_vars[student_i] <= (n-1))
+    mdl.add_constraints((mdl.u_vars[student_i] <= (num_of_nodes-1))
                         for student_i in student_nums_list if student_i >= 1)
 
-    mdl.minimize(mdl.sum(mdl.order_vars[student_i, student_j] * (travel_times[0][student_i][student_j]) 
-                         for student_j in student_nums_list for student_i in student_nums_list)+ mdl.sum(student_times[0][i] for i in range(0, n)))
+    mdl.minimize(mdl.sum(mdl.order_vars[student_i, student_j] * (tt_args[student_i][student_j]) 
+                         for student_j in student_nums_list for student_i in student_nums_list)+ mdl.sum(student_times[0][i] for i in range(0, num_of_nodes)))
     #  + mdl.sum(student_times[0][i] for i in range(0, n - 1)))
 
-    print("### VARIABLES ###")
-    for variable in mdl.iter_variables():
-        print(variable)
-    print("\n")
+    # print("### VARIABLES ###")
+    # for variable in mdl.iter_variables():
+    #     print(variable)
+    # print("\n")
 
-    print("### CONSTRAINTS ###")
-    for constraint in mdl.iter_constraints():
-        print(constraint)
-    print("\n")
+    # print("### CONSTRAINTS ###")
+    # for constraint in mdl.iter_constraints():
+    #     print(constraint)
+    # print("\n")
 
-    print("### OBJECTIVE FUNCTION ###")
-    print(mdl.get_objective_expr())
-    print("\n")
+    # print("### OBJECTIVE FUNCTION ###")
+    # print(mdl.get_objective_expr())
+    # print("\n")
 
     travel_vals = (travel_times[student_i][student_j]
                    for student_j in student_nums_list for student_i in student_nums_list)
@@ -138,39 +139,21 @@ def solve_problem(student_times, travel_times):
     mdl.solve()
 
     print("### TRAVEL TIMES MATRIX ###")
-    print(travel_times[0])
+    print(tt_args)
     print("\n")
 
     print("### RESULTS ###")
     mdl.print_solution()
 
 
-
-#             {1},    {2,3,4}
-# # recursive(source, unvisited_set):
-#     return_values
-#                         2, 3 ,4 
-#     for i in range(source + 1, len(unvisited_set)):
-#         # iteration1: remove 2 from here
-#         # iteration2: remove 3 from here
-#         # iteration3: remove 4 from here
-#         new_univisited = unvisited_set.remove(i)
-#         # source =2, unvisited = {3,4}
-#         # source =3, unvisited = {2,4}
-#         # source =4, unvisited = {2,3}
-#         return_values[i] = recursive_func(unvisited_set[i], new_univisited 
-
-#         return_values[2] = optimalvalue from node to 
-
-
 def dp_recursive(source, unvisited_set):
     
-    print("\n\n #### NEW CALL ####")
+    # print("\n\n #### NEW CALL ####")
     # print(f"Unvisited Set: {unvisited_set}")
     # print(f"Source Node: {source}")
     
     if len(unvisited_set) == 0:
-        return (travel_times[0][source][0], str(source) + "-->0")
+        return (tt_args[source][0], str(source) + "-->0")
 
     return_values = []
 
@@ -184,7 +167,7 @@ def dp_recursive(source, unvisited_set):
 
         return_values.append(dp_recursive(new_source, new_unvisited_set))
 
-    comparison_list = [travel_times[0][source][unvisited_set[i]] + return_values[i][0] for i in range(len(unvisited_set))]
+    comparison_list = [tt_args[source][unvisited_set[i]] + return_values[i][0] for i in range(len(unvisited_set))]
     # print(f"Comparison list is: {comparison_list}")
 
     min_path_val = min(comparison_list)
@@ -192,68 +175,55 @@ def dp_recursive(source, unvisited_set):
     # min_dist_node = return_values[min_dist_index][1]
     min_dist_complete_path = return_values[min_dist_index][1]
 
-    # return (travel_times[0][source][min_dist_node] + min_path_val, f"{min_dist_node}-->" + min_dist_complete_path)
-    tabs = ""
-    for i in range(6 - len(unvisited_set)):
-        tabs = tabs + "\t"
-    print (tabs, min_path_val, f"{source}-->" + min_dist_complete_path)
+    # return (tt_args[source][min_dist_node] + min_path_val, f"{min_dist_node}-->" + min_dist_complete_path)
+    # tabs = ""
+    # for i in range(6 - len(unvisited_set)):
+    #     tabs = tabs + "\t"
+    # print (tabs, min_path_val, f"{source}-->" + min_dist_complete_path)
 
     return (min_path_val, f"{source}-->" + min_dist_complete_path)
 
+def dp_wrapper(num_of_nodes):
+    unvisited_nodes_set = []
 
-
-
-# def dp_solve(unvisited_nodes_set, source_node, destination_node, current_sum):
-#     print(unvisited_nodes_set)
-#     print(f"Source node is {source_node}")
-
-#     if len(unvisited_nodes_set) == 1:
-#         print("Last node is 0")
-#         min_destination_val = travel_times[0][source_node][0]
-#         print(f"Last destination value is {min_destination_val}")
-#         return
-
-#     for node in unvisited_nodes_set:
-#         # check i != j
-#         if(source_node != node):
-#             # check if any destination path value is less than the current min destination value
-#             if (travel_times[0][source_node][node] < min_destination_val):
-#                 print(f"Smaller value found {travel_times[0][source_node][node]} < {min_destination_val}")
-
-#                 if(node != 0):
-#                     min_destination_val = travel_times[0][source_node][node]
-#                     min_destination_node = node
+    for i in range(0, num_of_nodes + 1):
+        if i != 0:
+            unvisited_nodes_set.append(i)
     
-#     unvisited_nodes_set.remove(source_node)
-#     new_source = min_destination_node
+    travel_result = dp_recursive(0, unvisited_nodes_set)
 
-#     print(f"New chosen node is {new_source}")
-#     print("\n")
-#     return (min_destination_val + dp_solve(unvisited_nodes_set, new_source))
+    homework_sum = 0
+
+    for i in range(0, num_of_nodes + 1):
+        homework_sum = homework_sum + student_times[0][i]
+
+    return (homework_sum + travel_result[0], travel_result[1])
+
 
 
 if __name__ == "__main__":
     n = int(sys.argv[1])
     # print (n)
     # generate_data(n)
-    student_times, travel_times = generate_data(5)
-    # travel_times[0][0] = [0, 23, 15, 42, 30, 51]
-    # travel_times[0][1] = [23, 0, 34, 28, 35, 45]
-    # travel_times[0][2] = [15, 34, 0, 48, 62, 27]
-    # travel_times[0][3] = [24, 28, 48, 0, 21, 19]
-    # travel_times[0][4] = [30, 35, 62, 21, 0, 36]
-    # travel_times[0][5] = [51, 45, 27, 19, 36, 0]
+    student_times, travel_times = generate_data(n)
+    
+    travel_times[0][0] = [0, 23, 15, 42, 30, 51]
+    travel_times[0][1] = [23, 0, 34, 28, 35, 45]
+    travel_times[0][2] = [15, 34, 0, 48, 62, 27]
+    travel_times[0][3] = [24, 28, 48, 0, 21, 19]
+    travel_times[0][4] = [30, 35, 62, 21, 0, 36]
+    travel_times[0][5] = [51, 45, 27, 19, 36, 0]
 
-    # student_times = [[0, 35, 45, 20, 50, 65]]
+    student_times = [[0, 35, 45, 20, 50, 65]]
     
 
-    unvisited_nodes_set = [1, 2, 3, 4, 5]
+    # unvisited_nodes_set = [1, 2, 3, 4, 5]
 
     print("\n")
-    print(len(unvisited_nodes_set))
+    print(travel_times)
     
-    print(dp_recursive(0, unvisited_nodes_set))
-    solve_problem(student_times, travel_times)
-
-    print(student_times)
-    print(travel_times[0])
+    for i in range(0, n//5):
+        tt_args = travel_times[0]
+        print("\n")
+        print(dp_wrapper(n))
+        solve_problem(student_times, n + 1)
