@@ -28,7 +28,7 @@ def generate_data(n: int):
 
     # Enumerate the applicable N values up to N=n i.e. N=5,10,15...n
     N_set = range(5, n + 5, 5)
-    print(f"\n {N_set}")
+    # print(f"\n {N_set}")
 
     # Create a list to hold the final travel_time matrices for N=5,10,15,... up to the function argument n
     # (which should be 75 at max i.e. 16 matrices in total)
@@ -49,7 +49,7 @@ def generate_data(n: int):
             current_variant = (np.round((valid_travel_time_range[1] - valid_travel_time_range[0]
 
                                          ) * np.random.rand(i + 1, i + 1) + valid_travel_time_range[0]))
-            print("\n")
+            # print("\n")
             # print(current_variant)
 
             # Add it elementwise to accumulator matrix
@@ -72,9 +72,9 @@ def generate_data(n: int):
         travel_time_matrices_list.append(ith_travel_time_matrix)
 
     # Print all of the calculated matrices
-    for i in range(len(N_set)):
-        print(
-            f"\n\n THIS IS THE FIRST TRAVEL_TIME MATRIX FOR N = {N_set[i]} \n {travel_time_matrices_list[i]}")
+    # for i in range(len(N_set)):
+        # print(
+        #     f"\n\n THIS IS THE FIRST TRAVEL_TIME MATRIX FOR N = {N_set[i]} \n {travel_time_matrices_list[i]}")
 
     return student_times_Xi, travel_time_matrices_list
 
@@ -142,7 +142,7 @@ def solve_problem(student_times, num_of_nodes):
     print(tt_args)
     print("\n")
 
-    print("### RESULTS ###")
+    print("### IP SOLUTION ###")
     mdl.print_solution()
 
 
@@ -153,7 +153,7 @@ def dp_recursive(source, unvisited_set):
     # print(f"Source Node: {source}")
     
     if len(unvisited_set) == 0:
-        return (tt_args[source][0], str(source) + "-->0")
+        return (tt_args[source][0], "[" + str(source) + "]" + "<-->[0]")
 
     return_values = []
 
@@ -181,7 +181,7 @@ def dp_recursive(source, unvisited_set):
     #     tabs = tabs + "\t"
     # print (tabs, min_path_val, f"{source}-->" + min_dist_complete_path)
 
-    return (min_path_val, f"{source}-->" + min_dist_complete_path)
+    return (min_path_val, f"[{source}]<-->" + min_dist_complete_path)
 
 def dp_wrapper(num_of_nodes):
     unvisited_nodes_set = []
@@ -207,23 +207,25 @@ if __name__ == "__main__":
     # generate_data(n)
     student_times, travel_times = generate_data(n)
     
-    travel_times[0][0] = [0, 23, 15, 42, 30, 51]
-    travel_times[0][1] = [23, 0, 34, 28, 35, 45]
-    travel_times[0][2] = [15, 34, 0, 48, 62, 27]
-    travel_times[0][3] = [24, 28, 48, 0, 21, 19]
-    travel_times[0][4] = [30, 35, 62, 21, 0, 36]
-    travel_times[0][5] = [51, 45, 27, 19, 36, 0]
+    # travel_times[0][0] = [0, 23, 15, 42, 30, 51]
+    # travel_times[0][1] = [23, 0, 34, 28, 35, 45]
+    # travel_times[0][2] = [15, 34, 0, 48, 62, 27]
+    # travel_times[0][3] = [24, 28, 48, 0, 21, 19]
+    # travel_times[0][4] = [30, 35, 62, 21, 0, 36]
+    # travel_times[0][5] = [51, 45, 27, 19, 36, 0]
 
-    student_times = [[0, 35, 45, 20, 50, 65]]
+    # student_times = [[0, 35, 45, 20, 50, 65]]
     
 
     # unvisited_nodes_set = [1, 2, 3, 4, 5]
 
     print("\n")
-    print(travel_times)
+    # print(travel_times)
     
     for i in range(0, n//5):
         tt_args = travel_times[0]
         print("\n")
-        print(dp_wrapper(n))
+        print("\n")
+        print("### DP SOLUTION ###")
+        # print(dp_wrapper(n))
         solve_problem(student_times, n + 1)
