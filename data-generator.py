@@ -78,7 +78,7 @@ def generate_data(n: int):
 
     for i in travel_time_matrices_list:
         tt_df = pd.DataFrame(i)
-        tt_df.to_excel(os.path.join(os.getcwd(), 'generated_data', f'travel_times_{travel_time_matrices_list.index(i)}.xls'), index=True)
+        tt_df.to_excel(os.path.join(os.getcwd(), 'generated_data', f'travel_times_{(travel_time_matrices_list.index(i) + 1) * 5}.xls'), index=True)
     st_df = pd.DataFrame(student_times_Xi)
     st_df.to_excel(os.path.join(os.getcwd(), 'generated_data', 'student_times.xls'), index=True)
 
@@ -156,6 +156,19 @@ def solve_problem(student_times, num_of_nodes):
     print("### IP SOLUTION ###")
     print("--- %s seconds ---" % (time.time() - start_time))
     mdl.print_solution()
+    sol_vars = mdl.solution.iter_var_values()
+    path_vars = []
+    print(sol_vars)
+
+    for x in sol_vars:
+         if x[0].is_binary():
+            path_vars.append(x[0].name)
+            print(x[0])
+    
+    # print(path_vars)
+
+    return (mdl.objective_value, path_vars, time.time() - start_time)
+
 
 
 def dp_recursive(source, unvisited_set):
@@ -216,7 +229,7 @@ def dp_wrapper(num_of_nodes):
     print("\n")
     print("### DP SOLUTION ###")
     print("--- %s seconds ---" % (time.time() - start_time))
-    return (homework_sum + travel_result[0], travel_result[1])
+    return (homework_sum + travel_result[0], travel_result[1], time.time() - start_time)
 
 
 
@@ -224,16 +237,31 @@ if __name__ == "__main__":
     n = int(sys.argv[1])
     student_times, travel_times = generate_data(n)
     
-    
+    ip_times_list = dict()
+    dp_times_list = dict()
+
     for i in range(0, n//5):
         tt_args = travel_times[i]
         print(f"N = {(i+1)*(5)}")
-        solve_problem(student_times, (i+1)*(5) + 1)
+        ip_times_list[(i+1)*(5)] = (solve_problem(student_times, (i+1)*(5) + 1))
 
     for i in range(0, n//5):
         tt_args = travel_times[i]
         print(f"N = {(i+1)*(5)}")
         
-        print(dp_wrapper((i+1)*(5)))
+        try:
+            result = dp_wrapper((i+1)*(5))
+            print(result)
+        except:
+            result = "N/A"
+            print(f"Timed out for N = {(i+1)*(5)}")
+        
+        dp_times_list[(i+1)*(5)] = (result)
+
+    ip_df = pd.DataFrame.from_dict(ip_times_list, orient= 'index')
+    ip_df.to_excel(os.path.join(os.getcwd(), 'generated_data', 'ip_time_results.xls'),header=["Optimal Value", "Optimal Path", "Time Taken/sec" ], index=True)
+    
+    dp_df = pd.DataFrame.from_dict(dp_times_list, orient= 'index')
+    dp_df.to_excel(os.path.join(os.getcwd(), 'generated_data', 'dp_time_results.xls'), header=["Optimal Path Value", "Optimal Path", "Time Taken/sec"], index=True)
 #         solve_problem(student_times, (i+1)*(5) + 1)
 
